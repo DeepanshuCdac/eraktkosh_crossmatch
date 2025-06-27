@@ -1,11 +1,4 @@
-// this is working good on uat...
-
-import React, {
-  useState,
-  useEffect,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import "./crossmatch.scss";
 import { Input, Checkbox, Collapse, Table, Empty } from "antd";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
@@ -16,10 +9,28 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
   const [searchText, setSearchText] = useState("");
   const [headerRemarks, setHeaderRemarks] = useState("");
   const [individualRemarks, setIndividualRemarks] = useState({});
+  const [validationErrors, setValidationErrors] = useState({});
+  const [totalSelectedBags, setTotalSelectedBags] = useState(0);
+
+  useEffect(() => {
+    const count = Object.values(selectedBags).reduce(
+      (sum, bagSet) => sum + bagSet.size,
+      0
+    );
+    setTotalSelectedBags(count);
+
+    if (count < 2 && headerRemarks.trim() !== "") {
+      setHeaderRemarks("");
+    }
+  }, [selectedBags]);
 
   const getSelectedBagsData = () => {
     if (!selectedBags || Object.keys(selectedBags).length === 0) {
       return [];
+    }
+
+    if (!validateRemarks()) {
+      return null;
     }
 
     const normalizedData = normalizeData(apiData);
@@ -59,8 +70,7 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
           requisitionNo: bagData.requisitionno,
           bloodBagNo: bagData.bloodbagno,
           bagSeqNo: bagData.bagseqno,
-          cancellationRemark:
-            individualRemark || headerRemarks || "Cancelled by user",
+          cancellationRemark: individualRemark || headerRemarks,
           cancellationDate: formattedDate,
           bagWithSeqNo: bagData.bagwithseqno,
           requesttype: bagData.requesttype?.toString() || "1",
@@ -69,6 +79,37 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
     });
 
     return selectedData;
+  };
+
+  const validateRemarks = () => {
+    const errors = {};
+    let isValid = true;
+
+    const selectedBagEntries = Object.entries(selectedBags).flatMap(
+      ([reqNo, bagSet]) => {
+        return Array.from(bagSet).map((bagNo) => ({
+          requisitionNo: reqNo,
+          bloodBagNo: bagNo,
+        }));
+      }
+    );
+
+    const hasHeaderRemarks = headerRemarks.trim() !== "";
+
+    if (!hasHeaderRemarks) {
+      selectedBagEntries.forEach(({ requisitionNo, bloodBagNo }) => {
+        const remarkKey = `${requisitionNo}-${bloodBagNo}`;
+        const hasIndividualRemark = individualRemarks[remarkKey]?.trim() !== "";
+
+        if (!hasIndividualRemark) {
+          errors[remarkKey] = "Remarks are required (either here or in header)";
+          isValid = false;
+        }
+      });
+    }
+
+    setValidationErrors(errors);
+    return isValid;
   };
 
   useImperativeHandle(ref, () => ({
@@ -143,14 +184,32 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
     if (!searchText) return data;
 
     const lowerCaseSearch = searchText.toLowerCase();
-    return data.filter(
-      (item) =>
-        item.requisitionno?.toString().includes(lowerCaseSearch) ||
-        (item.patientname &&
-          item.patientname.toLowerCase().includes(lowerCaseSearch)) ||
-        (item.bloodbagno &&
-          item.bloodbagno.toLowerCase().includes(lowerCaseSearch))
-    );
+
+    return data.filter((item) => {
+      const statusText = item.requisitionstatus === 2 ? "accepted" : "pending";
+      const priorityText = item.priority === 1 ? "routine" : "urgent";
+      const requestTypeText =
+        item.requesttype === 1 ? "crossmatch" : "ready to issue";
+
+      const searchString = [
+        item.requisitionno,
+        item.patientname,
+        item.bloodbagno,
+        item.componentname,
+        item.componentid,
+        item.agesex,
+        item.patcrno,
+        item.crossmatchdate,
+        item.bagwithseqno,
+        statusText,
+        priorityText,
+        requestTypeText,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchString.includes(lowerCaseSearch);
+    });
   };
 
   const handleSelectAll = (e) => {
@@ -218,7 +277,39 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
       ...prev,
       [remarkKey]: remark,
     }));
+
+    setValidationErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[remarkKey];
+      return newErrors;
+    });
   };
+
+ const handleHeaderRemarksChange = (e) => {
+  if (totalSelectedBags < 2) return;
+  
+  const value = e.target.value;
+  setHeaderRemarks(value);
+
+  // Update ALL selected bags with the new header remarks value
+  // regardless of previous individual modifications
+  setIndividualRemarks((prev) => {
+    const updatedRemarks = { ...prev };
+    let hasUpdates = false;
+
+    Object.entries(selectedBags).forEach(([reqNo, bagSet]) => {
+      Array.from(bagSet).forEach((bagNo) => {
+        const remarkKey = `${reqNo}-${bagNo}`;
+        updatedRemarks[remarkKey] = value;
+        hasUpdates = true;
+      });
+    });
+
+    return hasUpdates ? updatedRemarks : prev;
+  });
+
+  setValidationErrors({});
+};
 
   useEffect(() => {
     const normalizedData = normalizeData(apiData);
@@ -289,7 +380,7 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                   {requisitionno}
                 </Checkbox>
               </div>
-              <div className="table_body col-1">
+              <div className="table_body col-2">
                 {firstItem.requisitionraiseddate || "N/A"}
               </div>
               <div className="col-2 table_body">
@@ -303,11 +394,6 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
               </div>
               <div className="col-1 table_body">
                 {firstItem.requisitionstatus === 2 ? "Accepted" : "Pending"}
-              </div>
-              <div className="col-1 table_body">
-                {/* {items.some((item) => item.requesttype === 1)
-                  ? "CrossMatch"
-                  : "Ready to issue"} */}
               </div>
               <div className="col-1 table_body">{bagCount}</div>
             </div>
@@ -380,28 +466,56 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                 ),
               },
               {
-                title: "Remarks",
-                dataIndex: "remarks",
-                key: "remarks",
-                render: (text, record) => (
-                  <Input
-                    size="small"
-                    placeholder="Remarks sub"
-                    onChange={(e) =>
-                      handleIndividualRemarkChange(
-                        record.requisitionno,
-                        record.bloodbagno,
-                        e.target.value
-                      )
-                    }
-                    value={
-                      individualRemarks[
-                        `${record.requisitionno}-${record.bloodbagno}`
-                      ] || ""
-                    }
-                  />
-                ),
-              },
+  title: "Remarks",
+  dataIndex: "remarks",
+  key: "remarks",
+  render: (text, record) => {
+    const remarkKey = `${record.requisitionno}-${record.bloodbagno}`;
+    const isSelected = (
+      selectedBags[record.requisitionno] || new Set()
+    ).has(record.bloodbagno);
+    const error = validationErrors[remarkKey];
+    const showAsRequired = headerRemarks.trim() === "" && isSelected;
+    const isUsingHeaderRemark = 
+      isSelected && 
+      headerRemarks.trim() !== "" && 
+      individualRemarks[remarkKey] === headerRemarks;
+
+    return (
+      <div>
+        <Input
+          size="small"
+          placeholder={
+            isUsingHeaderRemark 
+              ? "Using header remarks" 
+              : headerRemarks.trim()
+                ? "Override header remarks"
+                : "Required (or enter in header)"
+          }
+          onChange={(e) =>
+            handleIndividualRemarkChange(
+              record.requisitionno,
+              record.bloodbagno,
+              e.target.value
+            )
+          }
+          value={individualRemarks[remarkKey] || ""}
+          status={showAsRequired && error ? "error" : ""}
+        />
+        {isUsingHeaderRemark && (
+          <div style={{ color: "green", fontSize: "12px" }}>
+            Using header remarks
+          </div>
+        )}
+        {showAsRequired && error && (
+          <div style={{ color: "red", fontSize: "12px" }}>
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  },
+}
             ]}
             dataSource={items}
             pagination={false}
@@ -454,20 +568,36 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                       Requisition No.
                     </Checkbox>
                   </div>
-                  <div className="col-1">Requisition Date</div>
+                  <div className="col-2">Requisition Date</div>
                   <div className="col-2">Patient Name</div>
                   <div className="col-1">Gender/Age</div>
                   <div className="col-1">Priority</div>
                   <div className="col-1">Requisition Status</div>
-                  <div className="col-1">Status</div>
                   <div className="col-1">CrossMatch Units</div>
                   <div className="col-2">
                     <Input
-                      size="small"
-                      placeholder="Remarks"
+                    style={{width: '250px'}}
+                      placeholder={
+                        totalSelectedBags >= 2
+                          ? "Remarks (will apply to all selected bags)"
+                          : "Select 2+ bags to enter header remarks"
+                      }
                       value={headerRemarks}
-                      onChange={(e) => setHeaderRemarks(e.target.value)}
+                      onChange={handleHeaderRemarksChange}
+                      status={
+                        Object.keys(validationErrors).length > 0 &&
+                        headerRemarks.trim() === ""
+                          ? "error"
+                          : ""
+                      }
+                      disabled={totalSelectedBags < 2}
                     />
+                    {Object.keys(validationErrors).length > 0 &&
+                      headerRemarks.trim() === "" && (
+                        <div style={{ color: "red", fontSize: "12px" }}>
+                          Enter remarks here or for each selected bag below
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>

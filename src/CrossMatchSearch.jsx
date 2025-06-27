@@ -50,17 +50,17 @@ const CrossMatchSearch = () => {
     });
   };
 
-   const fetchByDateRange = async () => {
+  const fetchByDateRange = async () => {
     if (!fromDate || !endDate) {
       showErrorAlert("Please select date range!");
       return null;
     }
 
     try {
-      const endpoint = isConfirmationRoute 
-        ? `${baseURL}/varification/date` 
+      const endpoint = isConfirmationRoute
+        ? `${baseURL}/varification/date`
         : `${baseURL}/cancellation/date`;
-        
+
       const response = await axios.get(endpoint, {
         params: {
           FromDate: fromDate.format("DD-MM-YYYY"),
@@ -77,94 +77,60 @@ const CrossMatchSearch = () => {
     }
   };
 
- const searchRecords = async () => {
+  const searchRecords = async () => {
     try {
-      const endpoint = isConfirmationRoute 
-        ? `${baseURL}/varification/search` 
+      const endpoint = isConfirmationRoute
+        ? `${baseURL}/varification/search`
         : `${baseURL}/cancellation/search`;
-      
-      const params = {
-        varSSOTicketGrantingTicket: SSoToken,
-        userAgent: userAgent,
-      };
 
-      let requestConfig = {};
-      
       if (isConfirmationRoute) {
+        // Verification/Confirmation search
+        const requestBody = {
+          FromDate: fromDate ? fromDate.format("DD-MM-YYYY") : "",
+          ToDate: endDate ? endDate.format("DD-MM-YYYY") : "",
+        };
 
-         let requestBody = {};
-        // For confirmation route, we need to send data in request body
-        if (activeField === "requisitionNo") {
-        requestBody = {
-          requisitionno: searchValues.requisitionNo,
-        };
-      } 
-      else if (activeField === "bagNo") {
-        requestBody = {
-          BagNo: searchValues.bagNo,
-        };
-      }
-      else if (activeField === "patientName") {
-        if (/^\d+$/.test(searchValues.patientName)) {
-          requestBody = {
-            patCrNo: searchValues.patientName
-          };
-        } else {
-          requestBody = {
-            patientName: searchValues.patientName,
-          };
+        if (searchValues.requisitionNo) {
+          requestBody.requisitionno = searchValues.requisitionNo;
         }
-      }
-        
-        requestConfig = {
-          params,
-          data: requestBody
+        if (searchValues.bagNo) {
+          requestBody.BagNo = searchValues.bagNo;
+        }
+        if (searchValues.patientName) {
+          if (/^\d+$/.test(searchValues.patientName)) {
+            requestBody.patCrNo = searchValues.patientName;
+          } else {
+            requestBody.patientName = searchValues.patientName;
+          }
+        }
+
+        const params = {
+          varSSOTicketGrantingTicket: SSoToken,
+          userAgent: userAgent,
         };
-        
-        console.log("Confirmation search request:", {
-          endpoint,
-          params,
-          requestBody
-        });
+
+        const response = await axios.post(endpoint, requestBody, { params });
+        return response.data;
       } else {
-        // For cancellation route, keep the existing params structure
-        switch (activeField) {
-          case "bagNo":
-            params.bag = searchValues.bagNo;
-            params.requisition = "";
-            params.cr = "";
-            params.name = "";
-            break;
-          case "requisitionNo":
-            params.bag = "";
-            params.requisition = searchValues.requisitionNo;
-            params.cr = "";
-            params.name = "";
-            break;
-          case "patientName":
-            params.bag = "";
-            params.requisition = "";
-            params.cr = /^\d+$/.test(searchValues.patientName) ? searchValues.patientName : "";
-            params.name = /^\d+$/.test(searchValues.patientName) ? "" : searchValues.patientName;
-            break;
-          default:
-            break;
-        }
-        
-        requestConfig = { params };
-        
-        console.log("Cancellation search request:", {
-          endpoint,
-          params
-        });
-      }
+        // Cancellation search
+        const params = {
+          FromDate: fromDate ? fromDate.format("DD-MM-YYYY") : "",
+          ToDate: endDate ? endDate.format("DD-MM-YYYY") : "",
+          bag: searchValues.bagNo || "",
+          requisition: searchValues.requisitionNo || "",
+          cr: /^\d+$/.test(searchValues.patientName)
+            ? searchValues.patientName
+            : "",
+          name: /^\d+$/.test(searchValues.patientName)
+            ? ""
+            : searchValues.patientName,
+          varSSOTicketGrantingTicket: SSoToken,
+          userAgent: userAgent,
+        };
 
-      const response = isConfirmationRoute 
-        ? await axios.post(endpoint, requestConfig.data, { params: requestConfig.params })
-        : await axios.get(endpoint, requestConfig);
-      
-      console.log("Search response:", response.data);
-      return response.data;
+        const response = await axios.get(endpoint, { params });
+        return response.data;
+      }
     } catch (error) {
       console.error("Search error:", error);
       showErrorAlert(error.response?.data || "Search failed");
@@ -180,43 +146,41 @@ const CrossMatchSearch = () => {
       let result = null;
       let searchParams = null;
 
-      if (activeField === "dateRange") {
+      // Check if only dates are provided (no other fields)
+      const onlyDatesProvided =
+        (fromDate || endDate) &&
+        !searchValues.bagNo &&
+        !searchValues.requisitionNo &&
+        !searchValues.patientName;
+
+      if (onlyDatesProvided) {
+        if (!fromDate || !endDate) {
+          showErrorAlert("Please select both from and to dates!");
+          return;
+        }
         searchParams = { fromDate, endDate };
         result = await fetchByDateRange();
         setLastSearchType("dateRange");
       } else {
-        switch (activeField) {
-          case "bagNo":
-            if (!searchValues.bagNo) {
-              showErrorAlert("Please enter Bag No!");
-              return;
-            }
-            searchParams = { field: "bagNo", value: searchValues.bagNo };
-            break;
-          case "requisitionNo":
-            if (!searchValues.requisitionNo) {
-              showErrorAlert("Please enter Requisition No!");
-              return;
-            }
-            searchParams = {
-              field: "requisitionNo",
-              value: searchValues.requisitionNo,
-            };
-            break;
-          case "patientName":
-            if (!searchValues.patientName) {
-              showErrorAlert("Please enter Patient Name/CR No!");
-              return;
-            }
-            searchParams = {
-              field: "patientName",
-              value: searchValues.patientName,
-            };
-            break;
-          default:
-            showErrorAlert("Please select a search criteria");
-            return;
+        // Check if at least one search criteria is provided
+        const hasSearchCriteria =
+          searchValues.bagNo ||
+          searchValues.requisitionNo ||
+          searchValues.patientName ||
+          (fromDate && endDate);
+
+        if (!hasSearchCriteria) {
+          showErrorAlert("Please provide at least one search criteria!");
+          return;
         }
+
+        searchParams = {
+          fromDate,
+          endDate,
+          bagNo: searchValues.bagNo,
+          requisitionNo: searchValues.requisitionNo,
+          patientName: searchValues.patientName,
+        };
 
         setLastSearchType("fieldSearch");
         result = await searchRecords();
@@ -246,129 +210,137 @@ const CrossMatchSearch = () => {
     setIsLoading(false);
   };
 
-  const handleFocus = (fieldName) => {
-    setActiveField((prev) => (prev === null ? fieldName : prev));
-  };
-
   const handlePatientNameChange = (e) => {
     const input = e.target.value;
+    //  if (/^[a-zA-Z0-9]{0,18}$/.test(input)) {
     handleInputChange("patientName", input);
+  // }
   };
 
- const handleSave = async () => {
-  if (!crossMatchRef.current) {
-    console.error("Component ref not available");
+  const handleSave = async () => {
+
+    const selectedData = crossMatchRef.current?.getSelectedBagsData();
+
+    if (selectedData === null) {
+    // Show error message to user
+    Swal.fire("Please provide all required remarks before submitting");
     return;
   }
-
-  const selectedBagsData = crossMatchRef.current.getSelectedBagsData();
-  console.log("Selected bags data to submit:", selectedBagsData);
-
-  if (selectedBagsData.length === 0) {
-    Swal.fire("Please select at least one bag");
+  
+  if (!selectedData || selectedData.length === 0) {
+    Swal.fire("Please select at least one bag to cancel");
     return;
   }
+    const selectedBagsData = crossMatchRef.current.getSelectedBagsData();
+    console.log("Selected bags data to submit:", selectedBagsData);
 
-  try {
-    const params = {
-      varSSOTicketGrantingTicket: SSoToken,
-      userAgent: userAgent,
-    };
-
-    if (isConfirmationRoute) {
-      // Confirmation flow 
-      const verificationData = selectedBagsData.map(req => ({
-        requisition: req.requisition,
-        countIndex: req.countIndex,
-        compoString: req.compoString,
-        bagList: req.bagList.map(bag => ({
-          bloodBagNo: bag.bloodBagNo,
-          bagSeqNo: bag.bagSeqNo.toString(), 
-          cancellationRemark: bag.cancellationRemark || "",
-          varificationRemark: bag.varificationRemark || "",
-          cancellationDate: bag.cancellationDate || "",
-          varificationDate: bag.varificationDate,
-          cancelFlag: bag.cancelFlag,
-          requisitionSlNo: bag.requisitionSlNo.toString(), 
-          bagWithSeqNo: bag.bagWithSeqNo,
-          requesttype: bag.requesttype,
-          requisitionNo: bag.requisitionNo
-        }))
-      }));
-
-      console.log("Verification API payload:", verificationData);
-      
-      const verificationResponse = await axios.post(
-        `${baseURL}/varification/save`,
-        verificationData,
-        { params }
-      );
-
-      console.log("Verification response:", verificationResponse.data);
-      
-      await Swal.fire({
-        title: "Success!",
-        text: "Verification saved successfully",
-        icon: "success",
-        confirmButtonText: "OK",
-      });
-    } else {
-      // Cancellation flow 
-      const response = await axios.post(
-        `${baseURL}/cancellation/save`,
-        selectedBagsData,
-        { params }
-      );
-
-      console.log(response);
-      await Swal.fire({
-        title: "Success!",
-        text: "Cancellation saved successfully",
-        icon: "success",
-        confirmButtonText: "OK",
-      });
+    if (selectedBagsData.length === 0) {
+      Swal.fire("Please select at least one bag");
+      return;
     }
 
-    if (lastSearchParams && lastSearchType) {
-      setIsLoading(true);
-      setShowCrossMatchCancel(false);
+    try {
+      const params = {
+        varSSOTicketGrantingTicket: SSoToken,
+        userAgent: userAgent,
+      };
 
-      try {
-        let result = null;
-        if (lastSearchType === "dateRange") {
-          result = await fetchByDateRange();
-        } else {
-          setActiveField(lastSearchParams.field);
-          setSearchValues((prev) => ({
-            ...prev,
-            [lastSearchParams.field]: lastSearchParams.value,
-          }));
-          result = await searchRecords();
-        }
+      if (isConfirmationRoute) {
+        // Confirmation flow
+        const verificationData = selectedBagsData.map((req) => ({
+          requisition: req.requisition,
+          countIndex: req.countIndex,
+          compoString: req.compoString,
+          bagList: req.bagList.map((bag) => ({
+            bloodBagNo: bag.bloodBagNo,
+            bagSeqNo: bag.bagSeqNo.toString(),
+            cancellationRemark: bag.cancellationRemark || "",
+            varificationRemark: bag.varificationRemark || "",
+            cancellationDate: bag.cancellationDate || "",
+            varificationDate: bag.varificationDate,
+            cancelFlag: bag.cancelFlag,
+            requisitionSlNo: bag.requisitionSlNo.toString(),
+            bagWithSeqNo: bag.bagWithSeqNo,
+            requesttype: bag.requesttype,
+            requisitionNo: bag.requisitionNo,
+          })),
+        }));
 
-        if (result) {
-          setApiData(result);
-          setShowCrossMatchCancel(true);
-        }
-      } catch (error) {
-        console.error("Error refreshing data:", error);
-      } finally {
-        setIsLoading(false);
+        console.log("Verification API payload:", verificationData);
+
+        const verificationResponse = await axios.post(
+          `${baseURL}/varification/save`,
+          verificationData,
+          { params }
+        );
+
+        console.log("Verification response:", verificationResponse.data);
+
+        await Swal.fire({
+          title: "Success!",
+          text: "Verification saved successfully",
+          icon: "success",
+          confirmButtonText: "OK",
+        });
+      } else {
+        // Cancellation flow
+        const response = await axios.post(
+          `${baseURL}/cancellation/save`,
+          selectedBagsData,
+          { params }
+        );
+
+        console.log(response);
+        await Swal.fire({
+          title: "Success!",
+          text: "Cancellation saved successfully",
+          icon: "success",
+          confirmButtonText: "OK",
+        });
       }
-    }
-  } catch (error) {
-    console.error("Error saving:", error);
-    Swal.fire({
-      title: "Error!",
-      text: `Error saving ${isConfirmationRoute ? "verification" : "cancellation"}: ${error.message}`,
-      icon: "error",
-      confirmButtonText: "OK",
-    });
-  }
-};
 
-   const getHeaderText = () => {
-    return isConfirmationRoute 
+      if (lastSearchParams && lastSearchType) {
+        setIsLoading(true);
+        setShowCrossMatchCancel(false);
+
+        try {
+          let result = null;
+          if (lastSearchType === "dateRange") {
+            result = await fetchByDateRange();
+          } else {
+            setActiveField(lastSearchParams.field);
+            setSearchValues((prev) => ({
+              ...prev,
+              [lastSearchParams.field]: lastSearchParams.value,
+            }));
+            result = await searchRecords();
+          }
+
+          if (result) {
+            setApiData(result);
+            setShowCrossMatchCancel(true);
+          }
+        } catch (error) {
+          console.error("Error refreshing data:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error saving:", error);
+      Swal.fire({
+        title: "Error!",
+        text: `Error saving ${
+          isConfirmationRoute ? "verification" : "cancellation"
+        }: ${error.message}`,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+    }
+  };
+
+  const getHeaderText = () => {
+    return isConfirmationRoute
       ? "Crossmatch & Ready-to-issue Confirmation"
       : "Crossmatch & Ready-to-issue Cancellation";
   };
@@ -389,9 +361,7 @@ const CrossMatchSearch = () => {
                   onClick={() => setSelected("crossmatch")}
                 >
                   <img src="assets/images/header_icon.svg" alt="" />
-                  <div className="sampleName">
-                    {getHeaderText()}
-                  </div>
+                  <div className="sampleName">{getHeaderText()}</div>
                 </div>
               </div>
               <div className="d-flex align-items-center">
@@ -427,8 +397,6 @@ const CrossMatchSearch = () => {
                 <label className="label me-1">From Date:</label>
                 <DatePicker
                   onChange={(date) => handleDateChange("from", date)}
-                  onFocus={() => handleFocus("dateRange")}
-                  disabled={activeField !== null && activeField !== "dateRange"}
                   value={fromDate}
                 />
               </div>
@@ -436,8 +404,6 @@ const CrossMatchSearch = () => {
                 <label className="label me-1">To Date:</label>
                 <DatePicker
                   onChange={(date) => handleDateChange("to", date)}
-                  onFocus={() => handleFocus("dateRange")}
-                  disabled={activeField !== null && activeField !== "dateRange"}
                   value={endDate}
                 />
               </div>
@@ -449,18 +415,12 @@ const CrossMatchSearch = () => {
                   value={searchValues.bagNo}
                   onChange={(e) => {
                     const input = e.target.value;
-                    // if (/^\d{0,12}$/.test(input)) {
-                    handleInputChange("bagNo", input);
-                    // }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSearch();
+                    if (/^[a-zA-Z0-9]{0,18}$/.test(input)) {
+                      handleInputChange("bagNo", input);
                     }
                   }}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   placeholder="Bag No."
-                  onFocus={() => handleFocus("bagNo")}
-                  disabled={activeField !== null && activeField !== "bagNo" && activeField !== "requisitionNo" && activeField !== "patientName"}
                 />
               </div>
 
@@ -471,17 +431,11 @@ const CrossMatchSearch = () => {
                   value={searchValues.requisitionNo}
                   onChange={(e) => {
                     const input = e.target.value;
-                    if (/^\d{0,15}$/.test(input)) {
+                    if (/^\d{0,18}$/.test(input)) {
                       handleInputChange("requisitionNo", input);
                     }
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSearch();
-                    }
-                  }}
-                  onFocus={() => handleFocus("requisitionNo")}
-                  disabled={activeField !== null && activeField !== "bagNo" && activeField !== "requisitionNo" && activeField !== "patientName"}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
               </div>
 
@@ -491,13 +445,7 @@ const CrossMatchSearch = () => {
                   placeholder="Patient Name/CR No."
                   value={searchValues.patientName}
                   onChange={handlePatientNameChange}
-                  onFocus={() => handleFocus("patientName")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSearch();
-                    }
-                  }}
-                  disabled={activeField !== null && activeField !== "bagNo" && activeField !== "requisitionNo" && activeField !== "patientName"}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
               </div>
 
@@ -506,12 +454,11 @@ const CrossMatchSearch = () => {
                 onClick={handleSearch}
                 loading={isLoading}
                 disabled={
-                  !activeField ||
-                  (activeField === "dateRange" && (!fromDate || !endDate)) ||
-                  (activeField === "bagNo" && !searchValues.bagNo) ||
-                  (activeField === "requisitionNo" &&
-                    !searchValues.requisitionNo) ||
-                  (activeField === "patientName" && !searchValues.patientName)
+                  !fromDate &&
+                  !endDate &&
+                  !searchValues.bagNo &&
+                  !searchValues.requisitionNo &&
+                  !searchValues.patientName
                 }
               >
                 Search
@@ -519,11 +466,16 @@ const CrossMatchSearch = () => {
             </div>
           </div>
 
-          {showCrossMatchCancel && (
-          isConfirmationRoute 
-            ? <CrossMatchCancelConfirm ref={crossMatchRef} apiData={apiData} isConfirmation={location.pathname.includes("confirmation")} />
-            : <CrossMatchCancellation ref={crossMatchRef} apiData={apiData} />
-        )}
+          {showCrossMatchCancel &&
+            (isConfirmationRoute ? (
+              <CrossMatchCancelConfirm
+                ref={crossMatchRef}
+                apiData={apiData}
+                isConfirmation={location.pathname.includes("confirmation")}
+              />
+            ) : (
+              <CrossMatchCancellation ref={crossMatchRef} apiData={apiData} />
+            ))}
         </div>
       </section>
     </main>
