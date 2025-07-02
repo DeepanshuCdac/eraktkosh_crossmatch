@@ -215,7 +215,7 @@ const CrossMatchSearch = () => {
     //  if (/^[a-zA-Z0-9]{0,18}$/.test(input)) {
     handleInputChange("patientName", input);
   // }
-  };
+  }; 
 
   const handleSave = async () => {
 

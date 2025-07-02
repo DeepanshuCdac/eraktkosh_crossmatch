@@ -5,7 +5,7 @@ import React, {
   useImperativeHandle,
 } from "react";
 import "./crossmatch.scss";
-import { Input, Checkbox, Collapse, Select, Table, Empty } from "antd";
+import { Input, Checkbox, Collapse, Select, Table, Empty, Alert } from "antd";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
 
 const CrossMatchCancelConfirm = forwardRef(
@@ -17,6 +17,8 @@ const CrossMatchCancelConfirm = forwardRef(
     const [individualRemarks, setIndividualRemarks] = useState({});
     const [verificationStatus, setVerificationStatus] = useState({});
     const [requisitionStatus, setRequisitionStatus] = useState({});
+    const [isHeaderInputDisabled, setIsHeaderInputDisabled] = useState(true);
+    const [validationError, setValidationError] = useState(false);
 
     useEffect(() => {
       if (isConfirmation) {
@@ -34,7 +36,49 @@ const CrossMatchCancelConfirm = forwardRef(
       }
     }, [selectedBags, verificationStatus, individualRemarks, isConfirmation]);
 
+    useEffect(() => {
+      const totalSelectedBags = Object.values(selectedBags).reduce(
+        (total, bagSet) => total + bagSet.size,
+        0
+      );
+      setIsHeaderInputDisabled(totalSelectedBags < 2);
+    }, [selectedBags]);
+
+    const validateBeforeSave = () => {
+      if (Object.keys(selectedBags).length === 0) {
+        setValidationError("Please select at least one bag");
+        return false;
+      }
+
+      // Check if all selected bags have a status selected
+      const allHaveStatus = Object.entries(selectedBags).every(
+        ([requisitionno, bagSet]) => {
+          return Array.from(bagSet).every((bloodbagno) => {
+            const statusKey = `${requisitionno}-${bloodbagno}`;
+            return (
+              verificationStatus[statusKey] &&
+              verificationStatus[statusKey] !== "-1"
+            );
+          });
+        }
+      );
+
+      if (!allHaveStatus) {
+        setValidationError(
+          "Please select cancellation status for all selected bags"
+        );
+        return false;
+      }
+
+      setValidationError(false);
+      return true;
+    };
+
     const getSelectedBagsData = () => {
+    //   if (!validateBeforeSave()) {
+    //     return null; // Return null if validation fails
+    //   }
+
       if (!selectedBags || Object.keys(selectedBags).length === 0) {
         return [];
       }
@@ -128,26 +172,55 @@ const CrossMatchCancelConfirm = forwardRef(
         [requisitionno]: status,
       }));
 
+      // Only update bags that don't have their own status set
       if (selectedBags[requisitionno] && selectedBags[requisitionno].size > 0) {
-        const newVerificationStatus = { ...verificationStatus };
-        selectedBags[requisitionno].forEach((bloodbagno) => {
-          const statusKey = `${requisitionno}-${bloodbagno}`;
-          newVerificationStatus[statusKey] = status;
+        setVerificationStatus((prev) => {
+          const newVerificationStatus = { ...prev };
+          selectedBags[requisitionno].forEach((bloodbagno) => {
+            const statusKey = `${requisitionno}-${bloodbagno}`;
+            if (!(statusKey in newVerificationStatus)) {
+              newVerificationStatus[statusKey] = status;
+            }
+          });
+          return newVerificationStatus;
         });
-        setVerificationStatus(newVerificationStatus);
       }
     };
 
     useImperativeHandle(ref, () => ({
-      getSelectedBagsData,
-    }));
+  getSelectedBagsData,
+  validate: () => {
+    if (Object.keys(selectedBags).length === 0) {
+      return { isValid: false, message: "Please select at least one bag" };
+    }
 
-    const normalizeData = (data) => {
+    const invalidBags = [];
+    Object.entries(selectedBags).forEach(([requisitionno, bagSet]) => {
+      Array.from(bagSet).forEach((bloodbagno) => { 
+        const statusKey = `${requisitionno}-${bloodbagno}`;
+        if (!verificationStatus[statusKey] || verificationStatus[statusKey] === "-1") {
+          invalidBags.push(bloodbagno);
+        }
+      });
+    });
+
+    if (invalidBags.length > 0) {
+      return { 
+        isValid: false, 
+        message: `Please select cancellation status for all selected bags`
+      };
+    }
+
+    return { isValid: true };
+  }
+}));
+
+    const normalizeData = (data) => {   
       if (!data || data.length === 0) return [];
 
       if (data[0]?.crossmatchbag) {
         return data.flatMap((item) => {
-          const crossmatchBags =
+          const crossmatchBags =  
             item.crossmatchbag?.map((bag) => ({
               requisitionno: item.requisitionno,
               requisitionraiseddate: item.requisitionraiseddate,
@@ -328,6 +401,26 @@ const CrossMatchCancelConfirm = forwardRef(
         ...prev,
         [statusKey]: status,
       }));
+      updateRequisitionStatusIfUniform(requisitionno);
+    };
+
+    const updateRequisitionStatusIfUniform = (requisitionno) => {
+      const bagsInRequisition = selectedBags[requisitionno];
+      if (!bagsInRequisition) return;
+
+      const statuses = Array.from(bagsInRequisition).map((bloodbagno) => {
+        const statusKey = `${requisitionno}-${bloodbagno}`;
+        return verificationStatus[statusKey];
+      });
+
+      // If all bags have the same status, update requisition status
+      const uniqueStatuses = [...new Set(statuses)];
+      if (uniqueStatuses.length === 1) {
+        setRequisitionStatus((prev) => ({
+          ...prev,
+          [requisitionno]: uniqueStatuses[0],
+        }));
+      }
     };
 
     useEffect(() => {
@@ -488,22 +581,17 @@ const CrossMatchCancelConfirm = forwardRef(
                     key: "verificationStatus",
                     render: (text, record) => {
                       const statusKey = `${record.requisitionno}-${record.bloodbagno}`;
-                      const requisitionLevelStatus = selectedBags[
-                        record.requisitionno
-                      ]?.has(record.bloodbagno)
-                        ? requisitionStatus[record.requisitionno]
-                        : null;
+                      // Always use the bag-specific status if it exists, otherwise use requisition status
+                      const currentStatus =
+                        verificationStatus[statusKey] !== undefined
+                          ? verificationStatus[statusKey]
+                          : requisitionStatus[record.requisitionno] || "-1";
 
                       return (
                         <div onClick={(e) => e.stopPropagation()}>
                           <label className="me-2">Is Cancel:</label>
                           <Select
-                            defaultValue="-1"
-                            value={
-                              requisitionLevelStatus ||
-                              verificationStatus[statusKey] ||
-                              "-1"
-                            }
+                            value={currentStatus}
                             onChange={(value) =>
                               handleStatusChange(
                                 record.requisitionno,
@@ -556,13 +644,15 @@ const CrossMatchCancelConfirm = forwardRef(
                       <Input
                         size="small"
                         placeholder="Verification Remark for 1 bag"
-                        onChange={(e) =>
+                        onChange={(e) => {
                           handleIndividualRemarkChange(
                             record.requisitionno,
                             record.bloodbagno,
                             e.target.value
-                          )
-                        }
+                          );
+                          // Clear header remarks if individual remark is modified
+                          setHeaderRemarks("");
+                        }}
                         value={
                           individualRemarks[
                             `${record.requisitionno}-${record.bloodbagno}`
@@ -602,6 +692,14 @@ const CrossMatchCancelConfirm = forwardRef(
       <main>
         <section>
           <div className="section_wrapper">
+            {validationError && (
+              <Alert
+                message={validationError}
+                type="error"
+                showIcon
+                className="mb-3"
+              />
+            )}
             <div className="d-flex align-items-center justify-content-between mb-2">
               <h4 className="section-header">CrossMatch Verification List</h4>
               <div>
@@ -631,7 +729,26 @@ const CrossMatchCancelConfirm = forwardRef(
                     {/* <div className="col-1">Status</div> */}
                     <div className="col-1">No. of Units</div>
                     <div className="col-2">
-                      <Input placeholder="Verification Remark for all" style={{width: '250px'}} />
+                      <Input
+                        placeholder="Verification Remark for all"
+                        style={{ width: "250px" }}
+                        disabled={isHeaderInputDisabled}
+                        value={headerRemarks}
+                        onChange={(e) => {
+                          setHeaderRemarks(e.target.value);
+                          // Update all selected bags' individual remarks
+                          const newRemarks = { ...individualRemarks };
+                          Object.entries(selectedBags).forEach(
+                            ([requisitionno, bagSet]) => {
+                              Array.from(bagSet).forEach((bloodbagno) => {
+                                const remarkKey = `${requisitionno}-${bloodbagno}`;
+                                newRemarks[remarkKey] = e.target.value;
+                              });
+                            }
+                          );
+                          setIndividualRemarks(newRemarks);
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
