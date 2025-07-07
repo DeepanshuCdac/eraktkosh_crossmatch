@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import "./App.scss";
 import "./crossmatch.scss";
 import { DatePicker, Input, Button } from "antd";
+import dayjs from "dayjs";
 import CrossMatchCancellation from "./CrossMatchCancellation";
 import axios from "axios";
 import { baseURL, SSoToken, userAgent } from "./BaseApi";
@@ -17,8 +18,8 @@ const CrossMatchSearch = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showCrossMatchCancel, setShowCrossMatchCancel] = useState(false);
   const [activeField, setActiveField] = useState(null);
-  const [fromDate, setFromDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [fromDate, setFromDate] = useState(dayjs());
+  const [endDate, setEndDate] = useState(dayjs());
   const [apiData, setApiData] = useState(null);
   const [lastSearchParams, setLastSearchParams] = useState(null);
   const [lastSearchType, setLastSearchType] = useState(null);
@@ -32,7 +33,19 @@ const CrossMatchSearch = () => {
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
 
   const handleDateChange = (field, date) => {
-    field === "from" ? setFromDate(date) : setEndDate(date);
+    if (field === "from") {
+      setFromDate(date);
+      // If end date is not set or is before the new from date, update end date to match
+      if (!endDate || date.isAfter(endDate)) {
+        setEndDate(date);
+      }
+    } else {
+      setEndDate(date);
+      // If from date is not set or is after the new end date, update from date to match
+      if (!fromDate || date.isBefore(fromDate)) {
+        setFromDate(date);
+      }
+    }
   };
 
   const handleInputChange = (field, value) => {
@@ -197,8 +210,8 @@ const CrossMatchSearch = () => {
   };
 
   const handleCancel = () => {
-    setFromDate(null);
-    setEndDate(null);
+    setFromDate(dayjs());
+    setEndDate(dayjs());
     setApiData(null);
     setSearchValues({
       bagNo: "",
@@ -214,23 +227,22 @@ const CrossMatchSearch = () => {
     const input = e.target.value;
     //  if (/^[a-zA-Z0-9]{0,18}$/.test(input)) {
     handleInputChange("patientName", input);
-  // }
-  }; 
+    // }
+  };
 
   const handleSave = async () => {
-
     const selectedData = crossMatchRef.current?.getSelectedBagsData();
 
     if (selectedData === null) {
-    // Show error message to user
-    Swal.fire("Please provide all required remarks before submitting");
-    return;
-  }
-  
-  if (!selectedData || selectedData.length === 0) {
-    Swal.fire("Please select at least one bag to cancel");
-    return;
-  }
+      // Show error message to user
+      Swal.fire("Please provide all required remarks before submitting");
+      return;
+    }
+
+    if (!selectedData || selectedData.length === 0) {
+      Swal.fire("Please select at least one bag to cancel");
+      return;
+    }
     const selectedBagsData = crossMatchRef.current.getSelectedBagsData();
     console.log("Selected bags data to submit:", selectedBagsData);
 
@@ -395,17 +407,23 @@ const CrossMatchSearch = () => {
             <div className="search_fields d-flex align-items-center p-3 justify-content-between">
               <div className="d-flex align-items-center justify-content-center">
                 <label className="label me-1">From Date:</label>
-                <DatePicker
-                  onChange={(date) => handleDateChange("from", date)}
-                  value={fromDate}
-                />
+               <DatePicker
+                className="custom-date-picker"
+                onChange={(date) => handleDateChange("from", date)}
+                value={fromDate}
+                allowClear={false}
+                suffixIcon={null}
+              />
               </div>
               <div className="d-flex align-items-center justify-content-center">
                 <label className="label me-1">To Date:</label>
                 <DatePicker
-                  onChange={(date) => handleDateChange("to", date)}
-                  value={endDate}
-                />
+                className="custom-date-picker"
+                onChange={(date) => handleDateChange("to", date)}
+                value={endDate}
+                allowClear={false}
+                suffixIcon={null}
+              />
               </div>
 
               <div className="divider"></div>
