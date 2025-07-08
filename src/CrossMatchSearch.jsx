@@ -232,11 +232,50 @@ const CrossMatchSearch = () => {
 
   const handleSave = async () => {
     const selectedData = crossMatchRef.current?.getSelectedBagsData();
-
+    console.log(selectedData, "selectedData", isConfirmationRoute);
     if (selectedData === null) {
       // Show error message to user
       Swal.fire("Please provide all required remarks before submitting");
       return;
+    }
+    if (isConfirmationRoute) {
+      if (
+        selectedData.some((item) =>
+          item.bagList?.some((bag) => bag.cancelFlag === "-1")
+        )
+      ) {
+        Swal.fire({
+          text: "If you want to save then please select option for selected bags.",
+          icon: "question",
+          confirmButtonText: "OK",
+        });
+        return;
+      }
+
+      if (
+        selectedData.some((item) =>
+          item.bagList?.some((bag) => bag.varificationRemark?.trim() === "")
+        )
+      ) {
+        Swal.fire({
+          text: "Please fill verification remarks for all selected bags.",
+          icon: "question",
+          confirmButtonText: "OK",
+        });
+        return;
+      }
+    } else {
+      if (
+        selectedData.some(
+          (item) =>
+            item.cancellationRemark?.trim() === "" || !item.cancellationRemark
+        )
+      ) {
+        Swal.fire(
+          "Please fill in cancellation remarks for all selected items."
+        );
+        return;
+      }
     }
 
     if (!selectedData || selectedData.length === 0) {
@@ -407,23 +446,23 @@ const CrossMatchSearch = () => {
             <div className="search_fields d-flex align-items-center p-3 justify-content-between">
               <div className="d-flex align-items-center justify-content-center">
                 <label className="label me-1">From Date:</label>
-               <DatePicker
-                className="custom-date-picker"
-                onChange={(date) => handleDateChange("from", date)}
-                value={fromDate}
-                allowClear={false}
-                suffixIcon={null}
-              />
+                <DatePicker
+                  className="custom-date-picker"
+                  onChange={(date) => handleDateChange("from", date)}
+                  value={fromDate}
+                  allowClear={false}
+                  suffixIcon={null}
+                />
               </div>
               <div className="d-flex align-items-center justify-content-center">
                 <label className="label me-1">To Date:</label>
                 <DatePicker
-                className="custom-date-picker"
-                onChange={(date) => handleDateChange("to", date)}
-                value={endDate}
-                allowClear={false}
-                suffixIcon={null}
-              />
+                  className="custom-date-picker"
+                  onChange={(date) => handleDateChange("to", date)}
+                  value={endDate}
+                  allowClear={false}
+                  suffixIcon={null}
+                />
               </div>
 
               <div className="divider"></div>

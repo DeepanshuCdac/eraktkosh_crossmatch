@@ -17,7 +17,6 @@ const CrossMatchCancelConfirm = forwardRef(
     const [individualRemarks, setIndividualRemarks] = useState({});
     const [verificationStatus, setVerificationStatus] = useState({});
     const [requisitionStatus, setRequisitionStatus] = useState({});
-    const [isHeaderInputDisabled, setIsHeaderInputDisabled] = useState(true);
     const [validationError, setValidationError] = useState(false);
 
     useEffect(() => {
@@ -36,13 +35,13 @@ const CrossMatchCancelConfirm = forwardRef(
       }
     }, [selectedBags, verificationStatus, individualRemarks, isConfirmation]);
 
-    useEffect(() => {
-      const totalSelectedBags = Object.values(selectedBags).reduce(
-        (total, bagSet) => total + bagSet.size,
-        0
-      );
-      setIsHeaderInputDisabled(totalSelectedBags < 2);
-    }, [selectedBags]);
+    // useEffect(() => {
+    //   const totalSelectedBags = Object.values(selectedBags).reduce(
+    //     (total, bagSet) => total + bagSet.size,
+    //     0
+    //   );
+    //   setIsHeaderInputDisabled(totalSelectedBags < 2);
+    // }, [selectedBags]);
 
     const validateBeforeSave = () => {
       if (Object.keys(selectedBags).length === 0) {
@@ -178,9 +177,9 @@ const CrossMatchCancelConfirm = forwardRef(
           const newVerificationStatus = { ...prev };
           selectedBags[requisitionno].forEach((bloodbagno) => {
             const statusKey = `${requisitionno}-${bloodbagno}`;
-            if (!(statusKey in newVerificationStatus)) {
+           
               newVerificationStatus[statusKey] = status;
-            }
+            
           });
           return newVerificationStatus;
         });
@@ -423,24 +422,68 @@ const CrossMatchCancelConfirm = forwardRef(
       }
     };
 
-    useEffect(() => {
-      const normalizedData = normalizeData(apiData);
-      const groupedData = groupByRequisition(normalizedData);
-      const allRequisitions = Object.keys(groupedData);
+  useEffect(() => {
+    const normalizedData = normalizeData(apiData);
+    console.log(normalizeData, "normaliseData 328");
 
-      if (allRequisitions.length === 0) {
-        setSelectAll(false);
-        return;
-      }
+    const groupedData = groupByRequisition(normalizedData);
+    console.log(groupedData, "groupedData 329");
 
-      const allSelected = allRequisitions.every((requisitionno) => {
-        const bagsInReq = groupedData[requisitionno];
-        const selectedBagsInReq = selectedBags[requisitionno] || new Set();
-        return selectedBagsInReq.size === bagsInReq.length;
+    const allRequisitions = Object.keys(groupedData);
+    console.log(allRequisitions, "Allrequistion 332");
+
+    if (allRequisitions.length === 0) {
+      setSelectAll(false);
+      return;
+    } else {
+      setSelectAll(true);
+    }
+
+    const allSelected = allRequisitions.every((requisitionno) => {
+      const bagsInReq = groupedData[requisitionno];
+      const selectedBagsInReq = selectedBags[requisitionno] || new Set();
+      return selectedBagsInReq.size === bagsInReq.length;
+    });
+
+    setSelectAll(allSelected);
+  }, [selectedBags]);
+
+  useEffect(() => {
+    const normalizedData = normalizeData(apiData);
+    console.log(normalizeData, "normaliseData 328");
+
+    const groupedData = groupByRequisition(normalizedData);
+    console.log(groupedData, "groupedData 329");
+
+    const allRequisitions = Object.keys(groupedData);
+    console.log(allRequisitions, "Allrequistion 332");
+
+    if (allRequisitions.length === 0) {
+      setSelectAll(false);
+      return;
+    } else {
+      setSelectAll(true);
+    }
+
+   allRequisitions.forEach((requisitionno) => {
+      const bagsInReq = groupedData[requisitionno];
+      //code to select bag
+
+      setSelectedBags((prev) => {
+        const newSelectedBags = { ...prev };
+        newSelectedBags[requisitionno] = new Set(
+          bagsInReq.map((bag) => bag.bloodbagno)
+        );
+        console.log(newSelectedBags,'newSleectedBags');
+        
+        return newSelectedBags;
       });
+    
+    
+    });
 
-      setSelectAll(allSelected);
-    }, [selectedBags, apiData]);
+    // setSelectAll(allSelected);
+  }, [apiData]);
 
     const getRequisitionCheckboxState = (requisitionno, bags) => {
       const selectedBagsInReq = selectedBags[requisitionno] || new Set();
@@ -643,7 +686,7 @@ const CrossMatchCancelConfirm = forwardRef(
                     render: (text, record) => (
                       <Input
                         size="small"
-                        placeholder="Verification Remark for 1 bag"
+                        placeholder="Verification Remark "
                         onChange={(e) => {
                           handleIndividualRemarkChange(
                             record.requisitionno,
@@ -730,9 +773,9 @@ const CrossMatchCancelConfirm = forwardRef(
                     <div className="col-1">No. of Units</div>
                     <div className="col-2">
                       <Input
-                        placeholder="Verification Remark for all"
+                        placeholder="Verification Remark"
                         style={{ width: "250px" }}
-                        disabled={isHeaderInputDisabled}
+                        disabled={false}
                         value={headerRemarks}
                         onChange={(e) => {
                           setHeaderRemarks(e.target.value);

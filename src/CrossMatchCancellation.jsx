@@ -1,4 +1,9 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import "./crossmatch.scss";
 import { Input, Checkbox, Collapse, Table, Empty } from "antd";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
@@ -23,6 +28,12 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
       setHeaderRemarks("");
     }
   }, [selectedBags]);
+
+  useEffect(() => {
+    console.log(apiData, "apiData");
+
+    if (apiData.length > 0) setSelectAll(true);
+  }, [apiData]);
 
   const getSelectedBagsData = () => {
     if (!selectedBags || Object.keys(selectedBags).length === 0) {
@@ -65,12 +76,13 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
       if (bagData) {
         const remarkKey = `${requisitionNo}-${bloodBagNo}`;
         const individualRemark = individualRemarks[remarkKey];
-
+        console.log(individualRemark, 'individual remarks',headerRemarks);
+        
         selectedData.push({
           requisitionNo: bagData.requisitionno,
           bloodBagNo: bagData.bloodbagno,
           bagSeqNo: bagData.bagseqno,
-          cancellationRemark: individualRemark || headerRemarks,
+          cancellationRemark: individualRemark,
           cancellationDate: formattedDate,
           bagWithSeqNo: bagData.bagwithseqno,
           requesttype: bagData.requesttype?.toString() || "1",
@@ -215,20 +227,27 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
   const handleSelectAll = (e) => {
     const isChecked = e.target.checked;
     setSelectAll(isChecked);
+    console.log(isChecked, "Ischecked");
 
     if (isChecked) {
       const allBags = {};
       const groupedData = groupByRequisition(normalizeData(apiData));
+      console.log(groupedData, "groupData");
+
       Object.keys(groupedData).forEach((requisitionno) => {
         allBags[requisitionno] = new Set(
           groupedData[requisitionno].map((bag) => bag.bloodbagno)
         );
       });
+      console.log(allBags, "AllBAgs");
+
       setSelectedBags(allBags);
     } else {
       setSelectedBags({});
     }
   };
+
+  console.log(selectedBags, "selectedBags");
 
   const handleRequisitionChange = (e, requisitionno, bags) => {
     const isChecked = e.target.checked;
@@ -277,7 +296,8 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
       ...prev,
       [remarkKey]: remark,
     }));
-
+    console.log(remarkKey,remark, 'remark');
+    
     setValidationErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors[remarkKey];
@@ -285,40 +305,47 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
     });
   };
 
- const handleHeaderRemarksChange = (e) => {
-  if (totalSelectedBags < 2) return;
-  
-  const value = e.target.value;
-  setHeaderRemarks(value);
+  const handleHeaderRemarksChange = (e) => {
+    // if (totalSelectedBags < 2) return;
 
-  // Update ALL selected bags with the new header remarks value
-  // regardless of previous individual modifications
-  setIndividualRemarks((prev) => {
-    const updatedRemarks = { ...prev };
-    let hasUpdates = false;
+    const value = e.target.value;
+    setHeaderRemarks(value);
 
-    Object.entries(selectedBags).forEach(([reqNo, bagSet]) => {
-      Array.from(bagSet).forEach((bagNo) => {
-        const remarkKey = `${reqNo}-${bagNo}`;
-        updatedRemarks[remarkKey] = value;
-        hasUpdates = true;
+    // Update ALL selected bags with the new header remarks value
+    // regardless of previous individual modifications
+    setIndividualRemarks((prev) => {
+      const updatedRemarks = { ...prev };
+      let hasUpdates = false;
+
+      Object.entries(selectedBags).forEach(([reqNo, bagSet]) => {
+        Array.from(bagSet).forEach((bagNo) => {
+          const remarkKey = `${reqNo}-${bagNo}`;
+          updatedRemarks[remarkKey] = value;
+          hasUpdates = true;
+        });
       });
+
+      return hasUpdates ? updatedRemarks : prev;
     });
 
-    return hasUpdates ? updatedRemarks : prev;
-  });
-
-  setValidationErrors({});
-};
+    setValidationErrors({});
+  };
 
   useEffect(() => {
     const normalizedData = normalizeData(apiData);
+    console.log(normalizeData, "normaliseData 328");
+
     const groupedData = groupByRequisition(normalizedData);
+    console.log(groupedData, "groupedData 329");
+
     const allRequisitions = Object.keys(groupedData);
+    console.log(allRequisitions, "Allrequistion 332");
 
     if (allRequisitions.length === 0) {
       setSelectAll(false);
       return;
+    } else {
+      setSelectAll(true);
     }
 
     const allSelected = allRequisitions.every((requisitionno) => {
@@ -328,7 +355,44 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
     });
 
     setSelectAll(allSelected);
-  }, [selectedBags, apiData]);
+  }, [selectedBags]);
+
+  useEffect(() => {
+    const normalizedData = normalizeData(apiData);
+    console.log(normalizeData, "normaliseData 328");
+
+    const groupedData = groupByRequisition(normalizedData);
+    console.log(groupedData, "groupedData 329");
+
+    const allRequisitions = Object.keys(groupedData);
+    console.log(allRequisitions, "Allrequistion 332");
+
+    if (allRequisitions.length === 0) {
+      setSelectAll(false);
+      return;
+    } else {
+      setSelectAll(true);
+    }
+
+   allRequisitions.forEach((requisitionno) => {
+      const bagsInReq = groupedData[requisitionno];
+      //code to select bag
+
+      setSelectedBags((prev) => {
+        const newSelectedBags = { ...prev };
+        newSelectedBags[requisitionno] = new Set(
+          bagsInReq.map((bag) => bag.bloodbagno)
+        );
+        console.log(newSelectedBags,'newSleectedBags');
+        
+        return newSelectedBags;
+      });
+    
+    
+    });
+
+    // setSelectAll(allSelected);
+  }, [apiData]);
 
   const getRequisitionCheckboxState = (requisitionno, bags) => {
     const selectedBagsInReq = selectedBags[requisitionno] || new Set();
@@ -466,56 +530,57 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                 ),
               },
               {
-  title: "Remarks",
-  dataIndex: "remarks",
-  key: "remarks",
-  render: (text, record) => {
-    const remarkKey = `${record.requisitionno}-${record.bloodbagno}`;
-    const isSelected = (
-      selectedBags[record.requisitionno] || new Set()
-    ).has(record.bloodbagno);
-    const error = validationErrors[remarkKey];
-    const showAsRequired = headerRemarks.trim() === "" && isSelected;
-    const isUsingHeaderRemark = 
-      isSelected && 
-      headerRemarks.trim() !== "" && 
-      individualRemarks[remarkKey] === headerRemarks;
+                title: "Remarks",
+                dataIndex: "remarks",
+                key: "remarks",
+                render: (text, record) => {
+                  const remarkKey = `${record.requisitionno}-${record.bloodbagno}`;
+                  const isSelected = (
+                    selectedBags[record.requisitionno] || new Set()
+                  ).has(record.bloodbagno);
+                  const error = validationErrors[remarkKey];
+                  const showAsRequired =
+                    headerRemarks.trim() === "" && isSelected;
+                  const isUsingHeaderRemark =
+                    isSelected &&
+                    headerRemarks.trim() !== "" &&
+                    individualRemarks[remarkKey] === headerRemarks;
 
-    return (
-      <div>
-        <Input
-          size="small"
-          placeholder={
-            isUsingHeaderRemark 
-              ? "Using header remarks" 
-              : headerRemarks.trim()
-                ? "Override header remarks"
-                : "Required (or enter in header)"
-          }
-          onChange={(e) =>
-            handleIndividualRemarkChange(
-              record.requisitionno,
-              record.bloodbagno,
-              e.target.value
-            )
-          }
-          value={individualRemarks[remarkKey] || ""}
-          status={showAsRequired && error ? "error" : ""}
-        />
-        {isUsingHeaderRemark && (
-          <div style={{ color: "green", fontSize: "12px" }}>
-            Using header remarks
-          </div>
-        )}
-        {showAsRequired && error && (
-          <div style={{ color: "red", fontSize: "12px" }}>
-            {error}
-          </div>
-        )}
-      </div>
-    );
-  },
-}
+                  return (
+                    <div>
+                      <Input
+                        size="small"
+                        placeholder={
+                          isUsingHeaderRemark
+                            ? "Using header remarks"
+                            : headerRemarks.trim()
+                            ? "Override header remarks"
+                            : "Cancellation Remark"
+                        }
+                        onChange={(e) =>
+                          handleIndividualRemarkChange(
+                            record.requisitionno,
+                            record.bloodbagno,
+                            e.target.value
+                          )
+                        }
+                        value={individualRemarks[remarkKey] || ""}
+                        status={showAsRequired && error ? "error" : ""}
+                      />
+                      {isUsingHeaderRemark && (
+                        <div style={{ color: "green", fontSize: "12px" }}>
+                          Using header remarks
+                        </div>
+                      )}
+                      {showAsRequired && error && (
+                        <div style={{ color: "red", fontSize: "12px" }}>
+                          {error}
+                        </div>
+                      )}
+                    </div>
+                  );
+                },
+              },
             ]}
             dataSource={items}
             pagination={false}
@@ -550,7 +615,7 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
             <h4 className="section-header mb-0">CrossMatch List</h4>
             <div>
               <Input
-                placeholder="Search by Requisition No, Patient Name, or Bag No"
+                placeholder="Search"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
@@ -576,11 +641,11 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                   <div className="col-1">CrossMatch Units</div>
                   <div className="col-2">
                     <Input
-                    style={{width: '250px'}}
+                      style={{ width: "250px" }}
                       placeholder={
-                        totalSelectedBags >= 2
-                          ? "Remarks (will apply to all selected bags)"
-                          : "Select 2+ bags to enter header remarks"
+                    
+                           "Cancellation Remarks"
+                       
                       }
                       value={headerRemarks}
                       onChange={handleHeaderRemarksChange}
@@ -590,7 +655,7 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                           ? "error"
                           : ""
                       }
-                      disabled={totalSelectedBags < 2}
+                      disabled={false}
                     />
                     {Object.keys(validationErrors).length > 0 &&
                       headerRemarks.trim() === "" && (
