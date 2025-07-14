@@ -35,14 +35,6 @@ const CrossMatchCancelConfirm = forwardRef(
       }
     }, [selectedBags, verificationStatus, individualRemarks, isConfirmation]);
 
-    // useEffect(() => {
-    //   const totalSelectedBags = Object.values(selectedBags).reduce(
-    //     (total, bagSet) => total + bagSet.size,
-    //     0
-    //   );
-    //   setIsHeaderInputDisabled(totalSelectedBags < 2);
-    // }, [selectedBags]);
-
     const validateBeforeSave = () => {
       if (Object.keys(selectedBags).length === 0) {
         setValidationError("Please select at least one bag");
@@ -449,41 +441,39 @@ const CrossMatchCancelConfirm = forwardRef(
   }, [selectedBags]);
 
   useEffect(() => {
-    const normalizedData = normalizeData(apiData);
-    console.log(normalizeData, "normaliseData 328");
+  const normalizedData = normalizeData(apiData);
+  const groupedData = groupByRequisition(normalizedData);
+  const allRequisitions = Object.keys(groupedData);
 
-    const groupedData = groupByRequisition(normalizedData);
-    console.log(groupedData, "groupedData 329");
+  if (allRequisitions.length === 0) {
+    setSelectAll(false);
+    return;
+  } else {
+    setSelectAll(true);
+  }
 
-    const allRequisitions = Object.keys(groupedData);
-    console.log(allRequisitions, "Allrequistion 332");
+  const newSelectedBags = {};
+  const newVerificationStatus = {};
+  const newRequisitionStatus = {};
 
-    if (allRequisitions.length === 0) {
-      setSelectAll(false);
-      return;
-    } else {
-      setSelectAll(true);
-    }
-
-   allRequisitions.forEach((requisitionno) => {
-      const bagsInReq = groupedData[requisitionno];
-      //code to select bag
-
-      setSelectedBags((prev) => {
-        const newSelectedBags = { ...prev };
-        newSelectedBags[requisitionno] = new Set(
-          bagsInReq.map((bag) => bag.bloodbagno)
-        );
-        console.log(newSelectedBags,'newSleectedBags');
-        
-        return newSelectedBags;
-      });
+  allRequisitions.forEach((requisitionno) => {
+    const bagsInReq = groupedData[requisitionno];
+    newSelectedBags[requisitionno] = new Set(bagsInReq.map(bag => bag.bloodbagno));
     
-    
+    // Set default status for each bag
+    bagsInReq.forEach(bag => {
+      const statusKey = `${requisitionno}-${bag.bloodbagno}`;
+      newVerificationStatus[statusKey] = "2"; // "2" is Confirm Cancellation
     });
+    
+    // Set default status for requisition
+    newRequisitionStatus[requisitionno] = "2"; // "2" is Confirm Cancellation
+  });
 
-    // setSelectAll(allSelected);
-  }, [apiData]);
+  setSelectedBags(newSelectedBags);
+  setVerificationStatus(newVerificationStatus);
+  setRequisitionStatus(newRequisitionStatus);
+}, [apiData]);
 
     const getRequisitionCheckboxState = (requisitionno, bags) => {
       const selectedBagsInReq = selectedBags[requisitionno] || new Set();
@@ -561,7 +551,7 @@ const CrossMatchCancelConfirm = forwardRef(
                   >
                     <label className="me-2">Is Cancel:</label>
                     <Select
-                      defaultValue="-1"
+                      defaultValue="2"
                       style={{ width: "100%" }}
                       options={[
                         { value: "-1", label: "Select Value" },
@@ -634,7 +624,7 @@ const CrossMatchCancelConfirm = forwardRef(
                         <div onClick={(e) => e.stopPropagation()}>
                           <label className="me-2">Is Cancel:</label>
                           <Select
-                            value={currentStatus}
+                            value={currentStatus || 2}
                             onChange={(value) =>
                               handleStatusChange(
                                 record.requisitionno,
@@ -686,7 +676,7 @@ const CrossMatchCancelConfirm = forwardRef(
                     render: (text, record) => (
                       <Input
                         size="small"
-                        placeholder="Verification Remark "
+                        placeholder="Enter Verification Remarks "
                         onChange={(e) => {
                           handleIndividualRemarkChange(
                             record.requisitionno,
@@ -773,7 +763,7 @@ const CrossMatchCancelConfirm = forwardRef(
                     <div className="col-1">No. of Units</div>
                     <div className="col-2">
                       <Input
-                        placeholder="Verification Remark"
+                        placeholder="Enter Verification Remarks"
                         style={{ width: "250px" }}
                         disabled={false}
                         value={headerRemarks}
@@ -796,10 +786,10 @@ const CrossMatchCancelConfirm = forwardRef(
                   </div>
                 </div>
 
-                <div>
+                <div className="alternate-rows">
                   <Collapse
                     className="mb-2"
-                    accordion
+                    // accordion
                     items={items}
                     expandIcon={({ isActive }) =>
                       isActive ? <MinusOutlined /> : <PlusOutlined />

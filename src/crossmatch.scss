@@ -283,3 +283,11 @@
     }
 
 }
+
+.alternate-rows .ant-collapse-item:nth-child(even) .ant-collapse-header {
+  background-color: #d2dde1; 
+}
+
+.alternate-rows .ant-table-tbody tr {
+  background-color: #ffffff;
+}

@@ -1,7 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.scss";
 import "./crossmatch.scss";
-import { DatePicker, Input, Button } from "antd";
+import { DatePicker, Input, Button, Switch, Tooltip } from "antd";
+import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import CrossMatchCancellation from "./CrossMatchCancellation";
 import axios from "axios";
@@ -18,11 +19,12 @@ const CrossMatchSearch = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showCrossMatchCancel, setShowCrossMatchCancel] = useState(false);
   const [activeField, setActiveField] = useState(null);
-  const [fromDate, setFromDate] = useState(dayjs());
-  const [endDate, setEndDate] = useState(dayjs());
+  const [fromDate, setFromDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [apiData, setApiData] = useState(null);
   const [lastSearchParams, setLastSearchParams] = useState(null);
   const [lastSearchType, setLastSearchType] = useState(null);
+  const [searchMode, setSearchMode] = useState(false);
   const [searchValues, setSearchValues] = useState({
     bagNo: "",
     requisitionNo: "",
@@ -35,18 +37,28 @@ const CrossMatchSearch = () => {
   const handleDateChange = (field, date) => {
     if (field === "from") {
       setFromDate(date);
-      // If end date is not set or is before the new from date, update end date to match
       if (!endDate || date.isAfter(endDate)) {
         setEndDate(date);
       }
     } else {
       setEndDate(date);
-      // If from date is not set or is after the new end date, update from date to match
       if (!fromDate || date.isBefore(fromDate)) {
         setFromDate(date);
       }
     }
   };
+
+  useEffect(() => {
+    if (!searchMode) {
+      // When switch is toggled to date range mode (left)
+      setFromDate(dayjs());
+      setEndDate(dayjs());
+    } else {
+      // When switch is toggled to search mode (right)
+      setFromDate(null);
+      setEndDate(null);
+    }
+  }, [searchMode]);
 
   const handleInputChange = (field, value) => {
     setSearchValues((prev) => ({
@@ -166,7 +178,7 @@ const CrossMatchSearch = () => {
         !searchValues.requisitionNo &&
         !searchValues.patientName;
 
-      if (onlyDatesProvided) {
+      if (!searchMode) {
         if (!fromDate || !endDate) {
           showErrorAlert("Please select both from and to dates!");
           return;
@@ -210,8 +222,13 @@ const CrossMatchSearch = () => {
   };
 
   const handleCancel = () => {
-    setFromDate(dayjs());
-    setEndDate(dayjs());
+    if (!searchMode) {
+      setFromDate(dayjs());
+      setEndDate(dayjs());
+    } else {
+      setFromDate(null);
+      setEndDate(null);
+    }
     setApiData(null);
     setSearchValues({
       bagNo: "",
@@ -221,6 +238,7 @@ const CrossMatchSearch = () => {
     setActiveField(null);
     setShowCrossMatchCancel(false);
     setIsLoading(false);
+    setSearchMode(false);
   };
 
   const handlePatientNameChange = (e) => {
@@ -245,7 +263,7 @@ const CrossMatchSearch = () => {
         )
       ) {
         Swal.fire({
-          text: "If you want to save then please select option for selected bags.",
+          text: "Please select an option under Is Cancel for selected bags.",
           icon: "question",
           confirmButtonText: "OK",
         });
@@ -271,9 +289,11 @@ const CrossMatchSearch = () => {
             item.cancellationRemark?.trim() === "" || !item.cancellationRemark
         )
       ) {
-        Swal.fire(
-          "Please fill in cancellation remarks for all selected items."
-        );
+        Swal.fire({
+          text: "Please fill cancellation remarks for all selected bags.",
+          icon: "question",
+          confirmButtonText: "OK",
+        });
         return;
       }
     }
@@ -465,7 +485,14 @@ const CrossMatchSearch = () => {
                 />
               </div>
 
-              <div className="divider"></div>
+              <Tooltip color="grey" title={!searchMode ? 'Date filters are active' : 'All filters are active'}>
+                <Switch
+                  checkedChildren={<CheckOutlined />}
+                  unCheckedChildren={<CloseOutlined />}
+                  checked={searchMode}
+                  onChange={(checked) => setSearchMode(checked)}
+                />
+              </Tooltip>
 
               <div>
                 <Input
@@ -478,6 +505,7 @@ const CrossMatchSearch = () => {
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   placeholder="Bag No."
+                  disabled={!searchMode}
                 />
               </div>
 
@@ -493,6 +521,7 @@ const CrossMatchSearch = () => {
                     }
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  disabled={!searchMode}
                 />
               </div>
 
@@ -503,6 +532,7 @@ const CrossMatchSearch = () => {
                   value={searchValues.patientName}
                   onChange={handlePatientNameChange}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  disabled={!searchMode}
                 />
               </div>
 

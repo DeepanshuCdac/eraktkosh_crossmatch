@@ -555,7 +555,7 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                             ? "Using header remarks"
                             : headerRemarks.trim()
                             ? "Override header remarks"
-                            : "Cancellation Remark"
+                            : "Enter Cancellation Remarks"
                         }
                         onChange={(e) =>
                           handleIndividualRemarkChange(
@@ -643,9 +643,7 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                     <Input
                       style={{ width: "250px" }}
                       placeholder={
-                    
-                           "Cancellation Remarks"
-                       
+                           "Enter Cancellation Remarks"
                       }
                       value={headerRemarks}
                       onChange={handleHeaderRemarksChange}
@@ -667,10 +665,10 @@ const CrossMatchCancellation = forwardRef(({ apiData }, ref) => {
                 </div>
               </div>
 
-              <div>
+              <div className="alternate-rows">
                 <Collapse
                   className="pb-0 mb-2"
-                  accordion
+                  // accordion
                   items={items}
                   expandIcon={({ isActive }) =>
                     isActive ? <MinusOutlined /> : <PlusOutlined />
