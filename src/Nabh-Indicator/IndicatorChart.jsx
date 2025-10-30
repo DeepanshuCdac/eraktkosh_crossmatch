@@ -123,7 +123,7 @@ export default function IndicatorChart({
                 borderDash: [6, 4],
                 label: {
                   display: true,
-                  content: `Avg: ${parseFloat(ytdValue).toFixed(2)}%`,
+                  content: `Year Avg: ${parseFloat(ytdValue).toFixed(2)}%`,
                   position: "end",
                   backgroundColor: "transparent",
                   color: "#e57504",

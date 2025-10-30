@@ -83,7 +83,7 @@ const CrossMatchSearch = () => {
 
     try {
       const endpoint = isConfirmationRoute
-        ? `${baseURL}/varification/date`
+        ? `${baseURL}/verification/date`
         : `${baseURL}/cancellation/date`;
 
       const response = await axios.get(endpoint, {
@@ -105,7 +105,7 @@ const CrossMatchSearch = () => {
   const searchRecords = async () => {
     try {
       const endpoint = isConfirmationRoute
-        ? `${baseURL}/varification/search`
+        ? `${baseURL}/verification/search`
         : `${baseURL}/cancellation/search`;
 
       if (isConfirmationRoute) {
@@ -340,7 +340,7 @@ const CrossMatchSearch = () => {
         console.log("Verification API payload:", verificationData);
 
         const verificationResponse = await axios.post(
-          `${baseURL}/varification/save`,
+          `${baseURL}/verification/save`,
           verificationData,
           { params }
         );

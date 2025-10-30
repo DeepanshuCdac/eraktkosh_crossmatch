@@ -12,7 +12,13 @@ export default function DataTable({ data, selectedMonth, loading, dataLength }) 
   };
 
   if (!data || !Array.isArray(data) || data.length === 0) {
-    return <p>No data available</p>;
+    return (
+      <div className="mainModal mt-3">
+        <p style={{ padding: "1rem", color: "red", fontWeight: 500 }}>
+          No data available.
+        </p>
+      </div>
+    );
   }
 
   const selectedMonthStr = selectedMonth
@@ -389,13 +395,13 @@ const lastMonth = getMonthName(sortedData[sortedData.length - 1]);
       key: "name",
     },
     {
-      title: "Latest Month Value (%)",
+      title: "Indicator Percentage (%)",
       dataIndex: "latestValue",
       key: "latestValue",
      render: (val) => (val !== undefined ? parseFloat(val).toFixed(2) : "-"),
     },
     {
-  title: `${firstMonth} to ${lastMonth} % average`,
+  title: "Year average (%)",
   dataIndex: "ytdValue",
   key: "ytdValue",
 },
