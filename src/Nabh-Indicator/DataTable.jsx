@@ -4,7 +4,12 @@ import "./Nabh.scss";
 import IndicatorChart from "./IndicatorChart";
 import dayjs from "dayjs";
 
-export default function DataTable({ data, selectedMonth, loading, dataLength }) {
+export default function DataTable({
+  data,
+  selectedMonth,
+  loading,
+  dataLength,
+}) {
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
 
   const handleExpand = (expanded, record) => {
@@ -32,12 +37,14 @@ export default function DataTable({ data, selectedMonth, loading, dataLength }) 
     data.find((item) => {
       const monthField = normalize(item.month);
       const monthNameField = normalize(item.month_name);
-      const sel = normalize(selectedMonthStr); 
+      const sel = normalize(selectedMonthStr);
 
       if (monthField && monthField === sel) return true;
 
       if (monthNameField && item.year) {
-        const combined = `${monthNameField}-${String(item.year).trim().toLowerCase()}`; 
+        const combined = `${monthNameField}-${String(item.year)
+          .trim()
+          .toLowerCase()}`;
         if (combined === sel) return true;
       }
 
@@ -56,22 +63,18 @@ export default function DataTable({ data, selectedMonth, loading, dataLength }) 
     );
   }
 
-  // ✅ Calculate average only for valid months that have numeric values
-const getYtdAverage = (key) => {
-  // Filter out rows where the value is missing or not numeric
-  const validValues = data
-    .map((item) => Number(item[key]))
-    .filter((val) => !isNaN(val) && val !== null);
+  const getYtdAverage = (key) => {
+    const validValues = data
+      .map((item) => Number(item[key]))
+      .filter((val) => !isNaN(val) && val !== null);
 
-  if (validValues.length === 0) return "0.00";
+    if (validValues.length === 0) return "0.00";
 
-  const total = validValues.reduce((sum, val) => sum + val, 0);
-  return (total / validValues.length).toFixed(2);
-};
+    const total = validValues.reduce((sum, val) => sum + val, 0);
+    return (total / validValues.length).toFixed(2);
+  };
 
-
-  const latest = monthData; 
-
+  const latest = monthData;
 
   const indicators = [
     // 1. TTI Rate (%)
@@ -82,7 +85,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("tti_rate_percentage"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               (Combined TTI cases (HIV + HBV + Syphilis + MP) / Total No. of
@@ -98,10 +101,10 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">Total TTI %</p>
-              <p className="number mb-0 p-2">{latest.tti_rate_percentage}</p>
+              <p className="number_per mb-0 p-2">{latest.tti_rate_percentage}%</p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               dataKey="tti_rate_percentage"
@@ -122,7 +125,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("transfusion_reaction_rate"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               (No. of Transfusion Reactions / Total Bags Issued) * 100
@@ -139,12 +142,12 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">Reaction Rate %</p>
-              <p className="number mb-0 p-2">
-                {latest.transfusion_reaction_rate}
+              <p className="number_per mb-0 p-2">
+                {latest.transfusion_reaction_rate}%
               </p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               selectedYear={selectedMonth ? selectedMonth.year() : null}
@@ -165,7 +168,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("wastage_rate_percentage"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               (Total Discarded Bags / Total Donations) * 100
@@ -180,12 +183,12 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">Wastage Rate %</p>
-              <p className="number mb-0 p-2">
-                {latest.wastage_rate_percentage}
+              <p className="number_per mb-0 p-2">
+                {latest.wastage_rate_percentage}%
               </p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               selectedYear={selectedMonth ? selectedMonth.year() : null}
@@ -206,7 +209,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("tat_urgent_avg_minutes"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               Average time between blood request and issue (routine cases)
@@ -219,10 +222,10 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">Urgent Average (mins)</p>
-              <p className="number mb-0 p-2">{latest.tat_urgent_avg_minutes}</p>
+              <p className="number_per mb-0 p-2">{latest.tat_urgent_avg_minutes}</p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               selectedYear={selectedMonth ? selectedMonth.year() : null}
@@ -243,7 +246,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("donor_reaction_rate"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               (No. of Donors with Reaction / Total Donations) * 100
@@ -258,16 +261,16 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">Reaction Rate %</p>
-              <p className="number mb-0 p-2">{latest.donor_reaction_rate}</p>
+              <p className="number_per mb-0 p-2">{latest.donor_reaction_rate}%</p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               selectedYear={selectedMonth ? selectedMonth.year() : null}
               dataKey="donor_reaction_rate"
               color="#c41010"
-               ytdValue={getYtdAverage("donor_reaction_rate")}
+              ytdValue={getYtdAverage("donor_reaction_rate")}
             />
           </div>
         </div>
@@ -282,7 +285,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("donor_deferral_rate"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               (No. of Donor Deferrals / Total Attempted Donations) * 100
@@ -297,16 +300,16 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">Deferral Rate %</p>
-              <p className="number mb-0 p-2">{latest.donor_deferral_rate}</p>
+              <p className="number_per mb-0 p-2">{latest.donor_deferral_rate}%</p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               selectedYear={selectedMonth ? selectedMonth.year() : null}
               dataKey="donor_deferral_rate"
               color="#c41010"
-               ytdValue={getYtdAverage("donor_deferral_rate")}
+              ytdValue={getYtdAverage("donor_deferral_rate")}
             />
           </div>
         </div>
@@ -321,7 +324,7 @@ const getYtdAverage = (key) => {
       ytdValue: getYtdAverage("percent_component_issues"),
       description: (
         <div className="row">
-          <div className="col-4">
+          <div className="col-xl-4 col-lg-4 col-12 ">
             <h3 className="inner_table_header mb-1">Formula Used</h3>
             <p className="formula mb-3">
               (Total Components Issued / Total Whole Blood Collected) * 100
@@ -336,18 +339,18 @@ const getYtdAverage = (key) => {
             </div>
             <div className="mb-3">
               <p className="details mb-1">% of Components Issued</p>
-              <p className="number mb-0 p-2">
-                {latest.percent_component_issues}
+              <p className="number_per mb-0 p-2">
+                {latest.percent_component_issues}%
               </p>
             </div>
           </div>
-          <div className="col-8">
+          <div className="col-xl-8 col-lg-8 col-12">
             <IndicatorChart
               data={data}
               selectedYear={selectedMonth ? selectedMonth.year() : null}
               dataKey="percent_component_issues"
               color="#c41010"
-               ytdValue={getYtdAverage("percent_component_issues")}
+              ytdValue={getYtdAverage("percent_component_issues")}
             />
           </div>
         </div>
@@ -355,38 +358,40 @@ const getYtdAverage = (key) => {
     },
   ];
 
-  // ✅ Log what data is actually being passed to each chart
-console.log("🔹 Chart Data Summary 🔹");
+  console.log("🔹 Chart Data Summary 🔹");
 
-indicators.forEach((indicator) => {
-  console.log({
-    indicatorName: indicator.name,
-    dataKey: indicator.description.props.children[1].props.children.props.dataKey,
-    chartData: data.map((item) => ({
-      month: item.month_name || item.month,
-      value: item[indicator.description.props.children[1].props.children.props.dataKey],
-    })),
+  indicators.forEach((indicator) => {
+    console.log({
+      indicatorName: indicator.name,
+      dataKey:
+        indicator.description.props.children[1].props.children.props.dataKey,
+      chartData: data.map((item) => ({
+        month: item.month_name || item.month,
+        value:
+          item[
+            indicator.description.props.children[1].props.children.props.dataKey
+          ],
+      })),
+    });
   });
-});
 
-// 🔹 Derive first and last months dynamically from API data
-const getMonthName = (item) => {
-  if (!item) return "";
-  return item.month_name
-    ? item.month_name
-    : item.month
-    ? String(item.month).charAt(0).toUpperCase() + String(item.month).slice(1)
-    : "";
-};
+  const getMonthName = (item) => {
+    if (!item) return "";
+    return item.month_name
+      ? item.month_name
+      : item.month
+      ? String(item.month).charAt(0).toUpperCase() + String(item.month).slice(1)
+      : "";
+  };
 
-const sortedData = [...data].sort((a, b) => {
-  const dateA = dayjs(`${a.month_name || a.month}-${a.year}`, "MMM-YYYY");
-  const dateB = dayjs(`${b.month_name || b.month}-${b.year}`, "MMM-YYYY");
-  return dateA - dateB;
-});
+  const sortedData = [...data].sort((a, b) => {
+    const dateA = dayjs(`${a.month_name || a.month}-${a.year}`, "MMM-YYYY");
+    const dateB = dayjs(`${b.month_name || b.month}-${b.year}`, "MMM-YYYY");
+    return dateA - dateB;
+  });
 
-const firstMonth = getMonthName(sortedData[0]);
-const lastMonth = getMonthName(sortedData[sortedData.length - 1]);
+  const firstMonth = getMonthName(sortedData[0]);
+  const lastMonth = getMonthName(sortedData[sortedData.length - 1]);
 
   const columns = [
     {
@@ -398,13 +403,13 @@ const lastMonth = getMonthName(sortedData[sortedData.length - 1]);
       title: "Indicator Percentage (%)",
       dataIndex: "latestValue",
       key: "latestValue",
-     render: (val) => (val !== undefined ? parseFloat(val).toFixed(2) : "-"),
+      render: (val) => (val !== undefined ? parseFloat(val).toFixed(2) : "-"),
     },
     {
-  title: "Year average (%)",
-  dataIndex: "ytdValue",
-  key: "ytdValue",
-},
+      title: "Year average (%)",
+      dataIndex: "ytdValue",
+      key: "ytdValue",
+    },
   ];
 
   return (

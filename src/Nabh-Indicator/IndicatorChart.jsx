@@ -34,18 +34,18 @@ export default function IndicatorChart({
   ytdValue,
 }) {
   const allMonths = [
-    "January",
-    "February",
-    "March",
-    "April",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
     "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
 
   const year = selectedYear || new Date().getFullYear();
@@ -142,8 +142,8 @@ export default function IndicatorChart({
         grid: { display: false, drawBorder: false },
         ticks: {
           color: "#444",
-          maxRotation: 45,
-          minRotation: 45,
+          maxRotation: 0,
+          minRotation: 0,
         },
       },
       y: {
